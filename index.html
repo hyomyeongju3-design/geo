@@ -18,21 +18,16 @@ const ctx = canvas.getContext("2d");
 canvas.width = 900;
 canvas.height = 400;
 
-let state = "start";
-
 let player = {x:150, y:300, w:40, h:40, vel:0};
 let gravity = 0.85;
 let jump = -14.5;
 
-let modeType = "cube"; // cube or ship
-
 let speed = 6;
-let score = 0;
 let frame = 0;
+let score = 0;
 
 let obstacles = [];
 let pads = [];
-let portals = [];
 
 let BPM = 90;
 let beat = Math.floor((60/BPM)*60);
@@ -40,85 +35,73 @@ let beat = Math.floor((60/BPM)*60);
 let audio = new Audio("music.mp3");
 audio.loop = true;
 
+let started = false;
+
 function playMusic(){
-    audio.play().catch(()=>{});
+    if(!started){
+        audio.currentTime = 0;
+        audio.play().catch(()=>{});
+        started = true;
+    }
 }
 
-function reset(){
-    player.y = 300;
-    player.vel = 0;
-    obstacles = [];
-    pads = [];
-    portals = [];
-    score = 0;
-    frame = 0;
-    modeType = "cube";
-    audio.currentTime = 0;
+function input(){
     playMusic();
-}
 
-function spawn(type){
-    if(type==="block") obstacles.push({x:900,y:280,w:30,h:60});
-    if(type==="pad") pads.push({x:900,y:320,w:40,h:10});
-    if(type==="portal") portals.push({x:900,y:260,w:30,h:80});
-}
-
-function inputAction(){
-    if(modeType==="cube"){
-        if(player.y + player.h >= 340){
-            player.vel = jump;
-        }
-    }else if(modeType==="ship"){
-        player.vel = -8;
+    if(player.y + player.h >= 340){
+        player.vel = jump;
     }
 }
 
 document.addEventListener("keydown", e=>{
-    if(state==="start" && e.code==="Space"){
-        state="play";
-        reset();
-    }else if(state==="play" && e.code==="Space"){
-        inputAction();
-    }else if(state==="gameover" && e.code==="Space"){
-        state="start";
-    }
+    if(e.code==="Space") input();
 });
 
-canvas.addEventListener("mousedown", ()=>{
-    if(state==="start"){ state="play"; reset(); }
-    else if(state==="play") inputAction();
-    else if(state==="gameover") state="start";
-});
+canvas.addEventListener("mousedown", input);
+canvas.addEventListener("touchstart", input);
 
-canvas.addEventListener("touchstart", ()=>{
-    if(state==="start"){ state="play"; reset(); }
-    else if(state==="play") inputAction();
-    else if(state==="gameover") state="start";
-});
+function spawnBlock(h, gap=0){
+    obstacles.push({x:900+gap,y:340-h,w:30,h:h});
+}
 
-function levelDesign(){
-    if(frame % beat === 0){
-        spawn("block");
+function spawnPad(gap=0){
+    pads.push({x:900+gap,y:320,w:40,h:10});
+}
+
+function level(){
+    if(frame === beat*1){
+        spawnBlock(60);
     }
-    if(frame % (beat*2) === 0){
-        spawn("pad");
+    if(frame === beat*2){
+        spawnBlock(40);
     }
-    if(frame % (beat*4) === 0){
-        spawn("portal");
+    if(frame === beat*3){
+        spawnBlock(40,40);
+    }
+    if(frame === beat*4){
+        spawnPad();
+        spawnBlock(100,20);
+    }
+    if(frame === beat*6){
+        spawnBlock(60);
+        spawnBlock(40,40);
+    }
+    if(frame === beat*8){
+        spawnPad();
+        spawnBlock(120,20);
+    }
+    if(frame === beat*10){
+        spawnBlock(40);
+        spawnBlock(40,35);
+        spawnBlock(40,70);
     }
 }
 
 function update(){
     frame++;
+    level();
 
-    levelDesign();
-
-    if(modeType==="cube"){
-        player.vel += gravity;
-    }else{
-        player.vel += 0.5; // ship 내려가는 힘
-    }
-
+    player.vel += gravity;
     player.y += player.vel;
 
     if(player.y + player.h >= 340){
@@ -126,35 +109,27 @@ function update(){
         player.vel = 0;
     }
 
-    if(player.y <= 0){
-        player.y = 0;
-        player.vel = 0;
-    }
-
     obstacles.forEach(o=>o.x -= speed);
     pads.forEach(p=>p.x -= speed);
-    portals.forEach(p=>p.x -= speed);
 
-    checkCollision();
+    collision();
 
     score++;
 }
 
-function checkCollision(){
+function collision(){
     for(let o of obstacles){
         if(player.x < o.x+o.w &&
            player.x+player.w > o.x &&
            player.y < o.y+o.h &&
            player.y+player.h > o.y){
 
-            state = "gameover";
-            audio.pause();
+            location.reload();
         }
     }
 
     for(let p of pads){
-        if(modeType==="cube" &&
-           player.x < p.x+p.w &&
+        if(player.x < p.x+p.w &&
            player.x+player.w > p.x &&
            player.y + player.h >= p.y &&
            player.y + player.h <= p.y + 10 &&
@@ -162,46 +137,24 @@ function checkCollision(){
             player.vel = -18;
         }
     }
-
-    for(let p of portals){
-        if(player.x < p.x+p.w &&
-           player.x+player.w > p.x &&
-           player.y < p.y+p.h &&
-           player.y+player.h > p.y){
-
-            modeType = (modeType==="cube") ? "ship" : "cube";
-        }
-    }
 }
 
-function drawPlayer(){
-    ctx.fillStyle="white";
-
-    if(modeType==="cube"){
-        ctx.fillRect(player.x, player.y, player.w, player.h);
-    }else{
-        ctx.beginPath();
-        ctx.moveTo(player.x, player.y);
-        ctx.lineTo(player.x, player.y+40);
-        ctx.lineTo(player.x+40, player.y+20);
-        ctx.fill();
-    }
-}
-
-function drawGame(){
-    ctx.fillStyle="#222";
+function draw(){
+    ctx.fillStyle="#111";
     ctx.fillRect(0,0,900,400);
 
-    drawPlayer();
+    ctx.fillStyle="white";
+    ctx.fillRect(player.x, player.y, 40, 40);
 
-    ctx.fillStyle="#ff5555";
-    obstacles.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));
+    ctx.fillStyle="#ff4444";
+    obstacles.forEach(o=>{
+        ctx.fillRect(o.x,o.y,o.w,o.h);
+    });
 
     ctx.fillStyle="#00ffcc";
-    pads.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
-
-    ctx.fillStyle="#aa55ff";
-    portals.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
+    pads.forEach(p=>{
+        ctx.fillRect(p.x,p.y,p.w,p.h);
+    });
 
     ctx.strokeStyle="white";
     ctx.beginPath();
@@ -213,37 +166,9 @@ function drawGame(){
     ctx.fillText("Score: "+score,20,30);
 }
 
-function drawStart(){
-    ctx.fillStyle="#111";
-    ctx.fillRect(0,0,900,400);
-
-    ctx.fillStyle="white";
-    ctx.font="40px Arial";
-    ctx.fillText("DASH", 350,150);
-    ctx.fillText("Tap to Start", 320,220);
-}
-
-function drawGameOver(){
-    ctx.fillStyle="rgba(0,0,0,0.5)";
-    ctx.fillRect(0,0,900,400);
-
-    ctx.fillStyle="white";
-    ctx.fillText("GAME OVER", 300,180);
-}
-
 function loop(){
-    if(state==="start"){
-        drawStart();
-    }
-    else if(state==="play"){
-        update();
-        drawGame();
-    }
-    else if(state==="gameover"){
-        drawGame();
-        drawGameOver();
-    }
-
+    update();
+    draw();
     requestAnimationFrame(loop);
 }
 
