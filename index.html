@@ -24,7 +24,7 @@ let jump = -14.5;
 
 let speed = 6;
 let frame = 0;
-let score = 0;
+let started = false;
 
 let obstacles = [];
 let pads = [];
@@ -34,8 +34,6 @@ let beat = Math.floor((60/BPM)*60);
 
 let audio = new Audio("music.mp3");
 audio.loop = true;
-
-let started = false;
 
 function playMusic(){
     if(!started){
@@ -47,7 +45,6 @@ function playMusic(){
 
 function input(){
     playMusic();
-
     if(player.y + player.h >= 340){
         player.vel = jump;
     }
@@ -61,39 +58,38 @@ canvas.addEventListener("mousedown", input);
 canvas.addEventListener("touchstart", input);
 
 function spawnBlock(h, gap=0){
-    obstacles.push({x:900+gap,y:340-h,w:30,h:h});
+    obstacles.push({x:900+gap, y:340-h, w:30, h:h});
 }
 
 function spawnPad(gap=0){
-    pads.push({x:900+gap,y:320,w:40,h:10});
+    pads.push({x:900+gap, y:320, w:40, h:10});
 }
 
 function level(){
     if(frame === beat*1){
-        spawnBlock(60);
-    }
-    if(frame === beat*2){
         spawnBlock(40);
     }
-    if(frame === beat*3){
-        spawnBlock(40,40);
+    if(frame === beat*2){
+        spawnBlock(30);
+        spawnBlock(30,40);
     }
-    if(frame === beat*4){
+    if(frame === beat*3){
         spawnPad();
         spawnBlock(100,20);
     }
-    if(frame === beat*6){
-        spawnBlock(60);
-        spawnBlock(40,40);
+    if(frame === beat*5){
+        spawnBlock(40);
+        spawnBlock(40,35);
+        spawnBlock(60,70);
     }
-    if(frame === beat*8){
+    if(frame === beat*7){
         spawnPad();
         spawnBlock(120,20);
     }
-    if(frame === beat*10){
-        spawnBlock(40);
-        spawnBlock(40,35);
-        spawnBlock(40,70);
+    if(frame === beat*9){
+        spawnBlock(30);
+        spawnBlock(50,35);
+        spawnBlock(70,70);
     }
 }
 
@@ -113,8 +109,6 @@ function update(){
     pads.forEach(p=>p.x -= speed);
 
     collision();
-
-    score++;
 }
 
 function collision(){
@@ -123,7 +117,6 @@ function collision(){
            player.x+player.w > o.x &&
            player.y < o.y+o.h &&
            player.y+player.h > o.y){
-
             location.reload();
         }
     }
@@ -161,9 +154,6 @@ function draw(){
     ctx.moveTo(0,340);
     ctx.lineTo(900,340);
     ctx.stroke();
-
-    ctx.fillStyle="white";
-    ctx.fillText("Score: "+score,20,30);
 }
 
 function loop(){
