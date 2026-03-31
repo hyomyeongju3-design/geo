@@ -30,7 +30,6 @@ let speed = 6;
 
 let frame = 0;
 let dead = false;
-let started = false;
 
 let obstacles = [];
 let pads = [];
@@ -41,49 +40,30 @@ let beat = Math.floor((60/BPM)*60);
 
 function setDifficulty(d){
     difficulty = d;
-    if(d==="easy"){
-        speed = 5;
-        jump = -15.5;
-    }
-    if(d==="normal"){
-        speed = 6;
-        jump = -14.5;
-    }
-    if(d==="hard"){
-        speed = 7;
-        jump = -13.5;
-    }
+    if(d==="easy"){ speed=5; jump=-15.5; }
+    if(d==="normal"){ speed=6; jump=-14.5; }
+    if(d==="hard"){ speed=7; jump=-13.5; }
 }
 
 function startGame(){
-    state = "play";
-    frame = 0;
-    dead = false;
-    obstacles = [];
-    pads = [];
-    particles = [];
-    player.y = 300;
-    player.vel = 0;
-    bgm.currentTime = 0;
+    state="play";
+    frame=0;
+    dead=false;
+    obstacles=[];
+    pads=[];
+    particles=[];
+    player.y=300;
+    player.vel=0;
+    bgm.currentTime=0;
     bgm.play();
 }
 
 function input(){
-    if(state==="menu"){
-        state="confirm";
-        return;
-    }
-
-    if(state==="confirm"){
-        startGame();
-        return;
-    }
+    if(state==="menu"){ state="confirm"; return; }
+    if(state==="confirm"){ startGame(); return; }
 
     if(state==="play"){
-        if(dead){
-            location.reload();
-            return;
-        }
+        if(dead){ location.reload(); return; }
         if(player.y + player.h >= 340){
             player.vel = jump;
         }
@@ -92,7 +72,6 @@ function input(){
 
 document.addEventListener("keydown", e=>{
     if(e.code==="Space") input();
-
     if(state==="menu"){
         if(e.key==="1") setDifficulty("easy");
         if(e.key==="2") setDifficulty("normal");
@@ -112,25 +91,37 @@ function spawnPad(gap=0){
 }
 
 function level(){
+
     if(frame === beat*1){
         spawnBlock(40);
     }
+
     if(frame === beat*2){
         spawnBlock(30);
         spawnBlock(30,50);
     }
+
     if(frame === beat*3){
         spawnPad(0);
         spawnBlock(100,90);
     }
+
     if(frame === beat*5){
         spawnBlock(40);
         spawnBlock(40,40);
         spawnBlock(60,80);
     }
+
     if(frame === beat*7){
         spawnPad(0);
         spawnBlock(120,100);
+    }
+
+    if(frame === beat*9){
+        spawnPad(0);
+        spawnBlock(30,50);
+        spawnBlock(50,100);
+        spawnBlock(70,150);
     }
 }
 
@@ -139,8 +130,8 @@ function update(){
 
     if(dead){
         particles.forEach(p=>{
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x+=p.vx;
+            p.y+=p.vy;
             p.life--;
         });
         return;
@@ -170,7 +161,7 @@ function collision(){
            player.y < o.y+o.h &&
            player.y+player.h > o.y){
 
-            dead = true;
+            dead=true;
 
             for(let i=0;i<25;i++){
                 particles.push({
