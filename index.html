@@ -25,15 +25,12 @@ let gravity = 0.9;
 let jump = -13;
 let angle = 0;
 
-let inverted = false;
-
 let speed = 6;
 let score = 0;
 let frame = 0;
 
 let obstacles = [];
 let pads = [];
-let portals = [];
 
 let colors = ["#00aaff","#ff55aa","#55ff55","#ffaa00"];
 let colorIndex = 0;
@@ -42,42 +39,48 @@ let BPM = 90;
 let beat = Math.floor((60/BPM)*60);
 
 let audio = new Audio("music.mp3");
+audio.loop = true;
 
-let fade = 0;
+function playMusic(){
+    audio.play().catch(()=>{});
+}
 
 function reset(){
     player.y = 300;
     player.vel = 0;
     obstacles = [];
     pads = [];
-    portals = [];
     score = 0;
     frame = 0;
     angle = 0;
-    inverted = false;
-    fade = 0;
     audio.currentTime = 0;
-    audio.play();
+    playMusic();
 }
 
 function spawn(type){
-    if(type==="block") obstacles.push({x:900,y:280,w:30,h:60});
-    if(type==="pad") pads.push({x:900,y:320,w:40,h:10});
-    if(type==="portal") portals.push({x:900,y:250,w:30,h:90});
+    if(type==="block"){
+        obstacles.push({x:900,y:280,w:30,h:60});
+    }
+    if(type==="pad"){
+        pads.push({x:900,y:320,w:40,h:10});
+    }
 }
 
 function jumpAction(){
-    if(inverted){
-        if(player.y<=0) player.vel = 13;
-    }else{
-        if(player.y+player.h>=340) player.vel = jump;
+    if(player.y + player.h >= 340){
+        player.vel = jump;
     }
+}
+
+function startGame(){
+    state="play";
+    playMusic();
+    reset();
 }
 
 document.addEventListener("keydown", e=>{
     if(state==="start" && e.code==="Space"){
-        state="play";
-        reset();
+        startGame();
     }else if(state==="play" && e.code==="Space"){
         jumpAction();
     }else if(state==="gameover" && e.code==="Space"){
@@ -86,13 +89,13 @@ document.addEventListener("keydown", e=>{
 });
 
 canvas.addEventListener("mousedown", ()=>{
-    if(state==="start"){ state="play"; reset(); }
+    if(state==="start"){ startGame(); }
     else if(state==="play") jumpAction();
     else if(state==="gameover") state="start";
 });
 
 canvas.addEventListener("touchstart", ()=>{
-    if(state==="start"){ state="play"; reset(); }
+    if(state==="start"){ startGame(); }
     else if(state==="play") jumpAction();
     else if(state==="gameover") state="start";
 });
@@ -105,8 +108,50 @@ function levelDesign(){
     if(frame % (beat*2) === 0){
         spawn("pad");
     }
-    if(frame % (beat*3) === 0){
-        spawn("portal");
+}
+
+function update(){
+    frame++;
+
+    levelDesign();
+
+    player.vel += gravity;
+    player.y += player.vel;
+
+    if(player.y + player.h >= 340){
+        player.y = 340 - player.h;
+        player.vel = 0;
+        angle = 0;
+    }
+
+    obstacles.forEach(o=>o.x -= speed);
+    pads.forEach(p=>p.x -= speed);
+
+    checkCollision();
+
+    score++;
+}
+
+function checkCollision(){
+    for(let o of obstacles){
+        if(player.x < o.x+o.w &&
+           player.x+player.w > o.x &&
+           player.y < o.y+o.h &&
+           player.y+player.h > o.y){
+
+            state = "gameover";
+            audio.pause();
+        }
+    }
+
+    for(let p of pads){
+        if(player.x < p.x+p.w &&
+           player.x+player.w > p.x &&
+           player.y + player.h >= p.y &&
+           player.y + player.h <= p.y + 10 &&
+           player.vel >= 0){
+            player.vel = -18;
+        }
     }
 }
 
@@ -120,61 +165,6 @@ function drawPlayer(){
     ctx.restore();
 }
 
-function collision(){
-    for(let o of obstacles){
-        if(player.x < o.x+o.w &&
-           player.x+player.w > o.x &&
-           player.y < o.y+o.h &&
-           player.y+player.h > o.y){
-            state="gameover";
-            audio.pause();
-        }
-    }
-
-    for(let p of pads){
-        if(player.x < p.x+p.w &&
-           player.x+player.w > p.x &&
-           player.y+player.h >= p.y){
-            player.vel = inverted ? -18 : -18;
-        }
-    }
-
-    for(let p of portals){
-        if(player.x < p.x+p.w &&
-           player.x+player.w > p.x &&
-           player.y < p.y+p.h &&
-           player.y+player.h > p.y){
-            inverted = !inverted;
-        }
-    }
-}
-
-function update(){
-    frame++;
-
-    levelDesign();
-
-    player.vel += inverted ? -gravity : gravity;
-    player.y += player.vel;
-
-    if(!inverted && player.y+player.h>=340){
-        player.y=340-player.h;
-        angle=0;
-    }
-    if(inverted && player.y<=0){
-        player.y=0;
-        angle=0;
-    }
-
-    obstacles.forEach(o=>o.x -= speed);
-    pads.forEach(p=>p.x -= speed);
-    portals.forEach(p=>p.x -= speed);
-
-    collision();
-
-    score++;
-}
-
 function drawGame(){
     ctx.fillStyle = colors[colorIndex];
     ctx.fillRect(0,0,900,400);
@@ -186,9 +176,6 @@ function drawGame(){
 
     ctx.fillStyle="#00ffcc";
     pads.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
-
-    ctx.fillStyle="#aa55ff";
-    portals.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
 
     ctx.strokeStyle="white";
     ctx.beginPath();
@@ -210,13 +197,11 @@ function drawStart(){
     ctx.fillText("DASH", 350,150);
 
     ctx.font="20px Arial";
-    ctx.fillText("Press / Tap to Start", 340,230);
+    ctx.fillText("Click / Tap to Start", 320,230);
 }
 
 function drawGameOver(){
-    fade += 5;
-
-    ctx.fillStyle="rgba(0,0,0,"+(fade/100)+")";
+    ctx.fillStyle="rgba(0,0,0,0.5)";
     ctx.fillRect(0,0,900,400);
 
     ctx.fillStyle="white";
