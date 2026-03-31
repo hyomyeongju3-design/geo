@@ -25,9 +25,11 @@ let jump = -14.5;
 let speed = 6;
 let frame = 0;
 let started = false;
+let dead = false;
 
 let obstacles = [];
 let pads = [];
+let particles = [];
 
 let BPM = 90;
 let beat = Math.floor((60/BPM)*60);
@@ -44,6 +46,10 @@ function playMusic(){
 }
 
 function input(){
+    if(dead){
+        location.reload();
+        return;
+    }
     playMusic();
     if(player.y + player.h >= 340){
         player.vel = jump;
@@ -69,31 +75,45 @@ function level(){
     if(frame === beat*1){
         spawnBlock(40);
     }
+
     if(frame === beat*2){
         spawnBlock(30);
-        spawnBlock(30,40);
+        spawnBlock(30,50);
     }
+
     if(frame === beat*3){
-        spawnPad();
-        spawnBlock(100,20);
+        spawnPad(0);
+        spawnBlock(100,80);
     }
+
     if(frame === beat*5){
         spawnBlock(40);
-        spawnBlock(40,35);
-        spawnBlock(60,70);
+        spawnBlock(40,40);
+        spawnBlock(60,80);
     }
+
     if(frame === beat*7){
-        spawnPad();
-        spawnBlock(120,20);
+        spawnPad(0);
+        spawnBlock(120,90);
     }
+
     if(frame === beat*9){
         spawnBlock(30);
-        spawnBlock(50,35);
-        spawnBlock(70,70);
+        spawnBlock(50,40);
+        spawnBlock(70,80);
     }
 }
 
 function update(){
+    if(dead){
+        particles.forEach(p=>{
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
+        });
+        return;
+    }
+
     frame++;
     level();
 
@@ -117,7 +137,18 @@ function collision(){
            player.x+player.w > o.x &&
            player.y < o.y+o.h &&
            player.y+player.h > o.y){
-            location.reload();
+
+            dead = true;
+
+            for(let i=0;i<25;i++){
+                particles.push({
+                    x:player.x+20,
+                    y:player.y+20,
+                    vx:(Math.random()-0.5)*10,
+                    vy:(Math.random()-0.5)*10,
+                    life:30
+                });
+            }
         }
     }
 
@@ -136,8 +167,10 @@ function draw(){
     ctx.fillStyle="#111";
     ctx.fillRect(0,0,900,400);
 
-    ctx.fillStyle="white";
-    ctx.fillRect(player.x, player.y, 40, 40);
+    if(!dead){
+        ctx.fillStyle="white";
+        ctx.fillRect(player.x, player.y, 40, 40);
+    }
 
     ctx.fillStyle="#ff4444";
     obstacles.forEach(o=>{
@@ -147,6 +180,11 @@ function draw(){
     ctx.fillStyle="#00ffcc";
     pads.forEach(p=>{
         ctx.fillRect(p.x,p.y,p.w,p.h);
+    });
+
+    particles.forEach(p=>{
+        ctx.fillStyle="white";
+        ctx.fillRect(p.x,p.y,4,4);
     });
 
     ctx.strokeStyle="white";
