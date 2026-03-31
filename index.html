@@ -4,28 +4,33 @@
 <meta charset="UTF-8">
 <title>Dash</title>
 <style>
-body { margin:0; overflow:hidden; background:#111; }
+body { margin:0; overflow:hidden; background:#111; font-family:sans-serif; }
 canvas { display:block; margin:auto; }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+<audio id="bgm" src="music.mp3" loop></audio>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const bgm = document.getElementById("bgm");
 
 canvas.width = 900;
 canvas.height = 400;
 
+let state = "menu";
+let difficulty = "normal";
+
 let player = {x:150, y:300, w:40, h:40, vel:0};
 let gravity = 0.85;
 let jump = -14.5;
-
 let speed = 6;
+
 let frame = 0;
-let started = false;
 let dead = false;
+let started = false;
 
 let obstacles = [];
 let pads = [];
@@ -34,30 +39,65 @@ let particles = [];
 let BPM = 90;
 let beat = Math.floor((60/BPM)*60);
 
-let audio = new Audio("music.mp3");
-audio.loop = true;
-
-function playMusic(){
-    if(!started){
-        audio.currentTime = 0;
-        audio.play().catch(()=>{});
-        started = true;
+function setDifficulty(d){
+    difficulty = d;
+    if(d==="easy"){
+        speed = 5;
+        jump = -15.5;
+    }
+    if(d==="normal"){
+        speed = 6;
+        jump = -14.5;
+    }
+    if(d==="hard"){
+        speed = 7;
+        jump = -13.5;
     }
 }
 
+function startGame(){
+    state = "play";
+    frame = 0;
+    dead = false;
+    obstacles = [];
+    pads = [];
+    particles = [];
+    player.y = 300;
+    player.vel = 0;
+    bgm.currentTime = 0;
+    bgm.play();
+}
+
 function input(){
-    if(dead){
-        location.reload();
+    if(state==="menu"){
+        state="confirm";
         return;
     }
-    playMusic();
-    if(player.y + player.h >= 340){
-        player.vel = jump;
+
+    if(state==="confirm"){
+        startGame();
+        return;
+    }
+
+    if(state==="play"){
+        if(dead){
+            location.reload();
+            return;
+        }
+        if(player.y + player.h >= 340){
+            player.vel = jump;
+        }
     }
 }
 
 document.addEventListener("keydown", e=>{
     if(e.code==="Space") input();
+
+    if(state==="menu"){
+        if(e.key==="1") setDifficulty("easy");
+        if(e.key==="2") setDifficulty("normal");
+        if(e.key==="3") setDifficulty("hard");
+    }
 });
 
 canvas.addEventListener("mousedown", input);
@@ -75,36 +115,28 @@ function level(){
     if(frame === beat*1){
         spawnBlock(40);
     }
-
     if(frame === beat*2){
         spawnBlock(30);
         spawnBlock(30,50);
     }
-
     if(frame === beat*3){
         spawnPad(0);
-        spawnBlock(100,80);
+        spawnBlock(100,90);
     }
-
     if(frame === beat*5){
         spawnBlock(40);
         spawnBlock(40,40);
         spawnBlock(60,80);
     }
-
     if(frame === beat*7){
         spawnPad(0);
-        spawnBlock(120,90);
-    }
-
-    if(frame === beat*9){
-        spawnBlock(30);
-        spawnBlock(50,40);
-        spawnBlock(70,80);
+        spawnBlock(120,100);
     }
 }
 
 function update(){
+    if(state!=="play") return;
+
     if(dead){
         particles.forEach(p=>{
             p.x += p.vx;
@@ -156,14 +188,38 @@ function collision(){
         if(player.x < p.x+p.w &&
            player.x+player.w > p.x &&
            player.y + player.h >= p.y &&
-           player.y + player.h <= p.y + 10 &&
            player.vel >= 0){
-            player.vel = -18;
+            player.vel = -22;
         }
     }
 }
 
-function draw(){
+function drawMenu(){
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,0,900,400);
+
+    ctx.fillStyle="white";
+    ctx.font="40px sans-serif";
+    ctx.fillText("DASH",380,120);
+
+    ctx.font="20px sans-serif";
+    ctx.fillText("1 EASY   2 NORMAL   3 HARD",270,200);
+    ctx.fillText("현재 난이도: "+difficulty,340,240);
+    ctx.fillText("클릭 또는 스페이스",320,280);
+}
+
+function drawConfirm(){
+    ctx.fillStyle="#000a";
+    ctx.fillRect(0,0,900,400);
+
+    ctx.fillStyle="white";
+    ctx.font="30px sans-serif";
+    ctx.fillText("시작하시겠습니까?",300,200);
+    ctx.font="20px sans-serif";
+    ctx.fillText("클릭 또는 스페이스",320,250);
+}
+
+function drawGame(){
     ctx.fillStyle="#111";
     ctx.fillRect(0,0,900,400);
 
@@ -173,14 +229,10 @@ function draw(){
     }
 
     ctx.fillStyle="#ff4444";
-    obstacles.forEach(o=>{
-        ctx.fillRect(o.x,o.y,o.w,o.h);
-    });
+    obstacles.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));
 
     ctx.fillStyle="#00ffcc";
-    pads.forEach(p=>{
-        ctx.fillRect(p.x,p.y,p.w,p.h);
-    });
+    pads.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
 
     particles.forEach(p=>{
         ctx.fillStyle="white";
@@ -196,7 +248,11 @@ function draw(){
 
 function loop(){
     update();
-    draw();
+
+    if(state==="menu") drawMenu();
+    if(state==="confirm") drawConfirm();
+    if(state==="play") drawGame();
+
     requestAnimationFrame(loop);
 }
 
