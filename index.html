@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Dash</title>
+<style>
+body { margin:0; overflow:hidden; background:#111; }
+canvas { display:block; margin:auto; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = 900;
+canvas.height = 400;
+
+let state = "start";
+
+let player = {x:150, y:300, w:40, h:40, vel:0};
+let gravity = 0.9;
+let jump = -13;
+let angle = 0;
+
+let inverted = false;
+
+let speed = 6;
+let score = 0;
+let frame = 0;
+
+let obstacles = [];
+let pads = [];
+let portals = [];
+
+let colors = ["#00aaff","#ff55aa","#55ff55","#ffaa00"];
+let colorIndex = 0;
+
+let BPM = 90;
+let beat = Math.floor((60/BPM)*60);
+
+let audio = new Audio("music.mp3");
+
+let fade = 0;
+
+function reset(){
+    player.y = 300;
+    player.vel = 0;
+    obstacles = [];
+    pads = [];
+    portals = [];
+    score = 0;
+    frame = 0;
+    angle = 0;
+    inverted = false;
+    fade = 0;
+    audio.currentTime = 0;
+    audio.play();
+}
+
+function spawn(type){
+    if(type==="block") obstacles.push({x:900,y:280,w:30,h:60});
+    if(type==="pad") pads.push({x:900,y:320,w:40,h:10});
+    if(type==="portal") portals.push({x:900,y:250,w:30,h:90});
+}
+
+function jumpAction(){
+    if(inverted){
+        if(player.y<=0) player.vel = 13;
+    }else{
+        if(player.y+player.h>=340) player.vel = jump;
+    }
+}
+
+document.addEventListener("keydown", e=>{
+    if(state==="start" && e.code==="Space"){
+        state="play";
+        reset();
+    }else if(state==="play" && e.code==="Space"){
+        jumpAction();
+    }else if(state==="gameover" && e.code==="Space"){
+        state="start";
+    }
+});
+
+canvas.addEventListener("mousedown", ()=>{
+    if(state==="start"){ state="play"; reset(); }
+    else if(state==="play") jumpAction();
+    else if(state==="gameover") state="start";
+});
+
+canvas.addEventListener("touchstart", ()=>{
+    if(state==="start"){ state="play"; reset(); }
+    else if(state==="play") jumpAction();
+    else if(state==="gameover") state="start";
+});
+
+function levelDesign(){
+    if(frame % beat === 0){
+        spawn("block");
+        colorIndex = (colorIndex+1)%colors.length;
+    }
+    if(frame % (beat*2) === 0){
+        spawn("pad");
+    }
+    if(frame % (beat*3) === 0){
+        spawn("portal");
+    }
+}
+
+function drawPlayer(){
+    angle += 10;
+    ctx.save();
+    ctx.translate(player.x+20, player.y+20);
+    ctx.rotate(angle*Math.PI/180);
+    ctx.fillStyle="white";
+    ctx.fillRect(-20,-20,40,40);
+    ctx.restore();
+}
+
+function collision(){
+    for(let o of obstacles){
+        if(player.x < o.x+o.w &&
+           player.x+player.w > o.x &&
+           player.y < o.y+o.h &&
+           player.y+player.h > o.y){
+            state="gameover";
+            audio.pause();
+        }
+    }
+
+    for(let p of pads){
+        if(player.x < p.x+p.w &&
+           player.x+player.w > p.x &&
+           player.y+player.h >= p.y){
+            player.vel = inverted ? -18 : -18;
+        }
+    }
+
+    for(let p of portals){
+        if(player.x < p.x+p.w &&
+           player.x+player.w > p.x &&
+           player.y < p.y+p.h &&
+           player.y+player.h > p.y){
+            inverted = !inverted;
+        }
+    }
+}
+
+function update(){
+    frame++;
+
+    levelDesign();
+
+    player.vel += inverted ? -gravity : gravity;
+    player.y += player.vel;
+
+    if(!inverted && player.y+player.h>=340){
+        player.y=340-player.h;
+        angle=0;
+    }
+    if(inverted && player.y<=0){
+        player.y=0;
+        angle=0;
+    }
+
+    obstacles.forEach(o=>o.x -= speed);
+    pads.forEach(p=>p.x -= speed);
+    portals.forEach(p=>p.x -= speed);
+
+    collision();
+
+    score++;
+}
+
+function drawGame(){
+    ctx.fillStyle = colors[colorIndex];
+    ctx.fillRect(0,0,900,400);
+
+    drawPlayer();
+
+    ctx.fillStyle="#ff5555";
+    obstacles.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h));
+
+    ctx.fillStyle="#00ffcc";
+    pads.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
+
+    ctx.fillStyle="#aa55ff";
+    portals.forEach(p=>ctx.fillRect(p.x,p.y,p.w,p.h));
+
+    ctx.strokeStyle="white";
+    ctx.beginPath();
+    ctx.moveTo(0,340);
+    ctx.lineTo(900,340);
+    ctx.stroke();
+
+    ctx.fillStyle="white";
+    ctx.font="20px Arial";
+    ctx.fillText("Score: "+score,20,30);
+}
+
+function drawStart(){
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,0,900,400);
+
+    ctx.fillStyle="white";
+    ctx.font="50px Arial";
+    ctx.fillText("DASH", 350,150);
+
+    ctx.font="20px Arial";
+    ctx.fillText("Press / Tap to Start", 340,230);
+}
+
+function drawGameOver(){
+    fade += 5;
+
+    ctx.fillStyle="rgba(0,0,0,"+(fade/100)+")";
+    ctx.fillRect(0,0,900,400);
+
+    ctx.fillStyle="white";
+    ctx.font="40px Arial";
+    ctx.fillText("GAME OVER", 300,180);
+
+    ctx.font="20px Arial";
+    ctx.fillText("Tap to Restart", 350,240);
+}
+
+function loop(){
+    if(state==="start"){
+        drawStart();
+    }
+    else if(state==="play"){
+        update();
+        drawGame();
+    }
+    else if(state==="gameover"){
+        drawGame();
+        drawGameOver();
+    }
+
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
